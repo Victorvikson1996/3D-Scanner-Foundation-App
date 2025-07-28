@@ -27,7 +27,7 @@ export class DepthProcessor {
 
       img.onload = () => {
         try {
-          const width = 320; // Reduced resolution for performance
+          const width = 320;
           const height = 240;
 
           this.canvas!.width = width;
@@ -48,9 +48,6 @@ export class DepthProcessor {
     });
   }
 
-  /**
-   * Convert image data to depth estimation using luminance
-   */
   private processImageToDepth(imageData: ImageData): Float32Array {
     const { data, width, height } = imageData;
     const depthData = new Float32Array(width * height);
@@ -60,10 +57,8 @@ export class DepthProcessor {
       const g = data[i + 1];
       const b = data[i + 2];
 
-      // Convert to grayscale using luminance formula
       const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
 
-      // Simple depth estimation: darker pixels are further away
       const depth = (255 - luminance) / 255;
 
       const pixelIndex = i / 4;
@@ -73,9 +68,6 @@ export class DepthProcessor {
     return depthData;
   }
 
-  /**
-   * Generate point cloud from depth data
-   */
   generatePointCloud(
     depthData: Float32Array,
     width: number,
@@ -93,7 +85,6 @@ export class DepthProcessor {
         const depth = depthData[index];
 
         if (depth > 0.1) {
-          // Filter out very close points
           const point: Point3D = {
             x: (x - width / 2) / width,
             y: (height / 2 - y) / height,
@@ -110,18 +101,11 @@ export class DepthProcessor {
     return points;
   }
 
-  /**
-   * Convert depth value to color for visualization
-   */
   private depthToColor(depth: number): string {
-    // Create a color gradient from blue (close) to red (far)
-    const hue = (1 - depth) * 240; // 240 = blue, 0 = red
+    const hue = (1 - depth) * 240;
     return `hsl(${hue}, 100%, 50%)`;
   }
 
-  /**
-   * Merge multiple point clouds
-   */
   mergePointClouds(pointClouds: Point3D[][]): Point3D[] {
     const merged: Point3D[] = [];
 
@@ -129,13 +113,9 @@ export class DepthProcessor {
       merged.push(...cloud);
     });
 
-    // Remove duplicate points (simple spatial hashing)
     return this.removeDuplicatePoints(merged);
   }
 
-  /**
-   * Remove duplicate points using spatial hashing
-   */
   private removeDuplicatePoints(
     points: Point3D[],
     threshold = 0.01
@@ -155,9 +135,6 @@ export class DepthProcessor {
     return Array.from(spatialHash.values());
   }
 
-  /**
-   * Export point cloud to PLY format
-   */
   exportToPLY(pointCloud: PointCloud): string {
     const { points } = pointCloud;
 
@@ -180,9 +157,6 @@ export class DepthProcessor {
     return ply;
   }
 
-  /**
-   * Convert hex color to RGB
-   */
   private hexToRgb(hex: string): { r: number; g: number; b: number } {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
