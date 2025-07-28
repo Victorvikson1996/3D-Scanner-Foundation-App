@@ -21,16 +21,9 @@ A professional-grade 3D scanning application built with React Native, Expo, and 
 
 ## 📱 Screenshots
 
-```
-Scanner Tab          3D Viewer Tab        Settings Tab
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   📷 CAMERA │     │  🔄 3D VIEW │     │ ⚙️ SETTINGS │
-│             │     │             │     │             │
-│   [SCAN]    │     │  Point      │     │ Preferences │
-│   Progress  │     │  Cloud      │     │ Data Mgmt   │
-│   Controls  │     │  Export     │     │ Help        │
-└─────────────┘     └─────────────┘     └─────────────┘
-```
+![Scanner](./src/screenshots/img.png)
+![Viewer](./src/screenshots/img1.png)
+![Settings](./src/screenshots/img2.png)
 
 ## 🏗️ Architecture
 
