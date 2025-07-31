@@ -7,10 +7,20 @@ A professional-grade 3D scanning application built with React Native, Expo, and 
 ### Core Functionality
 
 - **Real-time Camera Scanning**: Professional camera interface with live preview
+- **Photo Capture**: Single photo capture and continuous scanning modes
 - **3D Point Cloud Visualization**: Interactive viewer for generated 3D models
 - **Multi-format Export**: Support for PLY format with extensible architecture
 - **Comprehensive Settings**: Full app configuration with user preferences
 - **Data Management**: Local storage with share and export capabilities
+
+### Camera Features
+
+- **Single Photo Capture**: Tap the camera button to capture individual photos
+- **Continuous Scanning**: Start scanning mode to automatically capture frames at regular intervals
+- **Haptic Feedback**: Tactile responses for photo capture and scanning events
+- **Visual Feedback**: Flash effects and progress indicators during capture
+- **Camera Controls**: Flash toggle, camera switching, and quality settings
+- **Permission Handling**: Proper camera permission requests and error handling
 
 ### User Experience
 
@@ -35,6 +45,24 @@ A professional-grade 3D scanning application built with React Native, Expo, and 
 - **Clean Architecture**: Separation of concerns with clear data flow
 
 ## 🎯 Usage
+
+### Camera Operations
+
+#### Single Photo Capture
+
+1. **Open Scanner Tab**: Navigate to the scanner screen
+2. **Grant Permissions**: Allow camera access when prompted
+3. **Position Subject**: Frame your object in the camera view
+4. **Capture Photo**: Tap the camera button (📷) to take a single photo
+5. **Feedback**: Feel haptic feedback and see visual confirmation
+
+#### Continuous Scanning
+
+1. **Start Scanning**: Tap the main scan button (circle) to begin continuous capture
+2. **Move Around Object**: Slowly move your device around the subject
+3. **Monitor Progress**: Watch the progress bar and frame counter
+4. **Stop Scanning**: Tap the stop button (square) to end the session
+5. **Review Results**: View captured frames and processing status
 
 ### Basic Scanning
 

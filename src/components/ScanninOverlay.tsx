@@ -16,16 +16,19 @@ interface ScanningOverlayProps {
   progress: number;
   frameCount: number;
   onCancel?: () => void;
+  isCapturing?: boolean;
 }
 
 export const ScanningOverlay: React.FC<ScanningOverlayProps> = ({
   isVisible,
   progress,
   frameCount,
-  onCancel
+  onCancel,
+  isCapturing = false
 }) => {
   const scanLinePosition = useSharedValue(0);
   const pulseScale = useSharedValue(1);
+  const captureFlash = useSharedValue(0);
 
   React.useEffect(() => {
     if (isVisible) {
@@ -52,6 +55,14 @@ export const ScanningOverlay: React.FC<ScanningOverlayProps> = ({
     }
   }, [isVisible]);
 
+  React.useEffect(() => {
+    if (isCapturing) {
+      captureFlash.value = withTiming(1, { duration: 200 }, () => {
+        captureFlash.value = withTiming(0, { duration: 200 });
+      });
+    }
+  }, [isCapturing]);
+
   const scanLineStyle = useAnimatedStyle(() => {
     const translateY = interpolate(scanLinePosition.value, [0, 1], [-200, 200]);
 
@@ -64,10 +75,17 @@ export const ScanningOverlay: React.FC<ScanningOverlayProps> = ({
     transform: [{ scale: pulseScale.value }]
   }));
 
+  const captureFlashStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(captureFlash.value, [0, 1], [0, 0.3])
+  }));
+
   if (!isVisible) return null;
 
   return (
     <View style={styles.overlay}>
+      {/* Photo capture flash effect */}
+      <Animated.View style={[styles.captureFlash, captureFlashStyle]} />
+
       {/* Scanning frame */}
       <View style={styles.scanFrame}>
         <Animated.View style={[styles.corner, styles.topLeft, pulseStyle]} />
@@ -187,5 +205,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20
+  },
+  captureFlash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: SCANNER_CONSTANTS.COLORS.PRIMARY,
+    opacity: 0,
+    zIndex: -1
   }
 });

@@ -1,7 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ScanSession, CapturedFrame, ScannerConfig } from '@/types/Scanner';
+import {
+  ScanSession,
+  CapturedFrame,
+  ScannerConfig,
+  PointCloud
+} from '@/types/Scanner';
 import { SCANNER_CONSTANTS } from '@/constants/Scanner';
 import { useLiDAR } from './useLiDAR';
+import { StorageService } from '@/utils/StorageService';
+import { DepthProcessor } from '@/utils/DepthProcessor';
 
 export const useScanner = (config: Partial<ScannerConfig> = {}) => {
   const [session, setSession] = useState<ScanSession | null>(null);
@@ -14,6 +21,9 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
 
   const scanIntervalRef = useRef<NodeJS.Timeout | number | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | number | null>(null);
+  const onFrameCapturedRef = useRef<(() => void) | null>(null);
+  const frameCountRef = useRef(0); // Use ref to track frame count in intervals
+  const isScanningRef = useRef(false); // Use ref to track scanning state in intervals
 
   const scanConfig: ScannerConfig = {
     maxFrames: config.maxFrames || SCANNER_CONSTANTS.CAMERA.MAX_FRAMES,
@@ -24,39 +34,101 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
     exportFormat: config.exportFormat || 'ply'
   };
 
-  const startScan = useCallback(() => {
-    const newSession: ScanSession = {
-      id: `scan_${Date.now()}`,
-      startTime: Date.now(),
-      frames: [],
-      status: 'scanning',
-      progress: 0
-    };
+  const startFrameCapture = useCallback(
+    (takePhotoFn: () => Promise<string>, onFrameCaptured?: () => void) => {
+      console.log('Starting frame capture...');
+      onFrameCapturedRef.current = onFrameCaptured || null;
 
-    setSession(newSession);
-    setIsScanning(true);
-    setProgress(0);
-    setFrameCount(0);
+      // Start capturing frames at regular intervals
+      scanIntervalRef.current = setInterval(async () => {
+        try {
+          console.log(
+            'Frame capture interval triggered, current frame count:',
+            frameCountRef.current
+          );
 
-    // Progress tracking
-    progressIntervalRef.current = setInterval(() => {
-      setProgress((prev) => {
-        const elapsed = Date.now() - newSession.startTime;
-        const newProgress = Math.min(
-          (elapsed / scanConfig.scanDuration) * 100,
-          100
-        );
+          if (frameCountRef.current >= scanConfig.maxFrames) {
+            console.log('Max frames reached, stopping scan');
+            stopScan();
+            return;
+          }
 
-        if (newProgress >= 100) {
-          stopScan();
+          // Check if we're still scanning before taking photo
+          if (!isScanningRef.current) {
+            console.log('Not scanning anymore, skipping frame capture');
+            return;
+          }
+
+          console.log('Taking photo for frame capture...');
+          const photoUri = await takePhotoFn();
+          console.log('Photo taken for frame:', photoUri);
+
+          await captureFrame(photoUri);
+          console.log('Frame captured successfully');
+
+          // Trigger frame captured callback
+          if (onFrameCapturedRef.current) {
+            onFrameCapturedRef.current();
+          }
+        } catch (error) {
+          console.error('Failed to capture frame:', error);
+          // Don't stop scanning on individual frame errors, just log them
         }
+      }, SCANNER_CONSTANTS.CAMERA.FRAME_INTERVAL);
+    },
+    [scanConfig.maxFrames]
+  );
 
-        return newProgress;
-      });
-    }, SCANNER_CONSTANTS.SCAN.PROGRESS_UPDATE_INTERVAL);
-  }, [scanConfig.scanDuration]);
+  const startScan = useCallback(
+    (takePhotoFn?: () => Promise<string>, onFrameCaptured?: () => void) => {
+      console.log('Starting scan...');
+
+      const newSession: ScanSession = {
+        id: `scan_${Date.now()}`,
+        startTime: Date.now(),
+        frames: [],
+        status: 'scanning',
+        progress: 0
+      };
+
+      setSession(newSession);
+      setIsScanning(true);
+      isScanningRef.current = true; // Set the ref
+      setProgress(0);
+      setFrameCount(0);
+      frameCountRef.current = 0; // Reset the ref
+
+      // Start frame capture if takePhotoFn is provided
+      if (takePhotoFn) {
+        console.log('Starting frame capture with takePhotoFn');
+        startFrameCapture(takePhotoFn, onFrameCaptured);
+      } else {
+        console.log('No takePhotoFn provided, skipping frame capture');
+      }
+
+      // Progress tracking
+      progressIntervalRef.current = setInterval(() => {
+        setProgress((prev) => {
+          const elapsed = Date.now() - newSession.startTime;
+          const newProgress = Math.min(
+            (elapsed / scanConfig.scanDuration) * 100,
+            100
+          );
+
+          if (newProgress >= 100) {
+            stopScan();
+          }
+
+          return newProgress;
+        });
+      }, SCANNER_CONSTANTS.SCAN.PROGRESS_UPDATE_INTERVAL);
+    },
+    [scanConfig.scanDuration, startFrameCapture]
+  );
 
   const stopScan = useCallback(() => {
+    console.log('Stopping scan...');
+
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
@@ -68,6 +140,7 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
     }
 
     setIsScanning(false);
+    isScanningRef.current = false; // Clear the ref
     setProgress(100);
 
     if (session) {
@@ -86,15 +159,29 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
 
   const captureFrame = useCallback(
     async (uri: string): Promise<CapturedFrame> => {
+      // Calculate realistic position based on frame count
+      const frameIndex = frameCountRef.current;
+      const angle = (frameIndex / scanConfig.maxFrames) * Math.PI * 2; // Full circle
+      const radius = 0.5; // Distance from center
+
       const frame: CapturedFrame = {
         id: `frame_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         timestamp: Date.now(),
         uri,
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 }
+        position: {
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+          z: 0.2 * Math.sin(angle * 2) // Add some vertical variation
+        },
+        rotation: {
+          x: 0,
+          y: angle,
+          z: 0
+        }
       };
 
-      setFrameCount((prev) => prev + 1);
+      frameCountRef.current += 1;
+      setFrameCount(frameCountRef.current);
 
       if (session) {
         setSession((prev) =>
@@ -109,7 +196,7 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
 
       return frame;
     },
-    [session]
+    [session, scanConfig.maxFrames]
   );
 
   const resetScan = useCallback(() => {
@@ -117,6 +204,8 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
     setSession(null);
     setProgress(0);
     setFrameCount(0);
+    frameCountRef.current = 0; // Reset the ref
+    isScanningRef.current = false; // Clear the ref
   }, [stopScan]);
 
   // LiDAR-specific methods
@@ -177,6 +266,56 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
     return lidar.depthToPointCloud(lidar.lastFrame);
   }, [lidar]);
 
+  const saveScan = useCallback(
+    async (name?: string, deviceType?: string) => {
+      if (!session) {
+        throw new Error('No scan session to save');
+      }
+
+      console.log(`Saving scan with ${session.frames.length} frames`);
+
+      // Generate point cloud from captured frames
+      let pointCloud: PointCloud;
+
+      if (session.frames.length > 0) {
+        // Use captured frames to generate point cloud
+        pointCloud = await DepthProcessor.processFramesToPointCloud(
+          session.frames,
+          name || `Scan ${new Date().toLocaleDateString()}`,
+          deviceType || 'Camera Device',
+          session.endTime ? session.endTime - session.startTime : 0
+        );
+      } else {
+        // Fallback to test point cloud if no frames captured
+        pointCloud = DepthProcessor.createTestPointCloud(
+          name || `Test Scan ${new Date().toLocaleDateString()}`,
+          deviceType || 'Test Device',
+          session.endTime ? session.endTime - session.startTime : 15000
+        );
+      }
+
+      const scanData = {
+        id: session.id,
+        startTime: session.startTime,
+        endTime: Date.now(),
+        status: session.status,
+        progress: session.progress,
+        frames: session.frames,
+        pointCloud: pointCloud
+      };
+
+      await StorageService.saveScanSession(session);
+      await StorageService.savePointCloud(pointCloud);
+      resetScan(); // Clear session after saving
+
+      console.log(
+        `Scan saved successfully with ${pointCloud.points.length} points`
+      );
+      return pointCloud;
+    },
+    [session, resetScan]
+  );
+
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) {
@@ -188,6 +327,11 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
     };
   }, []);
 
+  // Keep ref in sync with state
+  useEffect(() => {
+    isScanningRef.current = isScanning;
+  }, [isScanning]);
+
   return {
     session,
     isScanning,
@@ -198,6 +342,7 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
     stopScan,
     captureFrame,
     resetScan,
+    startFrameCapture,
 
     lidarCapabilities: lidar.capabilities,
     useLiDARMode,
@@ -205,6 +350,7 @@ export const useScanner = (config: Partial<ScannerConfig> = {}) => {
     lastLiDARFrame: lidar.lastFrame,
     toggleLiDARMode,
     captureLiDARFrame,
-    generatePointCloud
+    generatePointCloud,
+    saveScan
   };
 };

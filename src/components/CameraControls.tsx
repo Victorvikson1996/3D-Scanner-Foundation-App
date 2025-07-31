@@ -12,7 +12,8 @@ import {
   ZapOff,
   Circle,
   Square,
-  Settings
+  Settings,
+  Camera
 } from 'lucide-react-native';
 import { SCANNER_CONSTANTS } from '@/constants/Scanner';
 
@@ -27,6 +28,8 @@ interface CameraControlsProps {
   onStartScan: () => void;
   onStopScan: () => void;
   onSettings: () => void;
+  onCapturePhoto?: () => void;
+  isCaptureDisabled?: boolean;
 }
 
 export const CameraControls: React.FC<CameraControlsProps> = ({
@@ -36,7 +39,9 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
   onToggleCamera,
   onStartScan,
   onStopScan,
-  onSettings
+  onSettings,
+  onCapturePhoto,
+  isCaptureDisabled = false
 }) => {
   const scanButtonScale = useSharedValue(1);
   const scanButtonRotation = useSharedValue(0);
@@ -138,7 +143,22 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
           </View>
         </AnimatedTouchableOpacity>
 
-        <View style={styles.placeholder} />
+        {/* Single photo capture button */}
+        {onCapturePhoto && (
+          <ControlButton
+            onPress={isCaptureDisabled ? () => {} : onCapturePhoto}
+            active={false}
+          >
+            <Camera
+              size={28}
+              color={
+                isCaptureDisabled
+                  ? SCANNER_CONSTANTS.COLORS.TEXT_SECONDARY
+                  : SCANNER_CONSTANTS.COLORS.TEXT_PRIMARY
+              }
+            />
+          </ControlButton>
+        )}
       </View>
     </View>
   );

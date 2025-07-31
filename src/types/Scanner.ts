@@ -19,6 +19,8 @@ export interface PointCloud {
       min: Point3D;
       max: Point3D;
     };
+    frameCount?: number;
+    processingMethod?: string;
   };
 }
 

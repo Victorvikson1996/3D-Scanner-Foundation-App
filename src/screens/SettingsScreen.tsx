@@ -12,9 +12,7 @@ import {
   Camera,
   Scan as Scan3d,
   Download,
-  Info,
   CircleHelp as HelpCircle,
-  Trash2,
   Settings as SettingsIcon
 } from 'lucide-react-native';
 import { Button } from '@/components/Button';

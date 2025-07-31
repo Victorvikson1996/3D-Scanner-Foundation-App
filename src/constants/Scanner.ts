@@ -4,7 +4,7 @@ export const SCANNER_CONSTANTS = {
   CAMERA: {
     DEFAULT_QUALITY: 'high' as const,
     MAX_FRAMES: 100,
-    FRAME_INTERVAL: 100, // ms
+    FRAME_INTERVAL: 1000, // Increased from 100ms to 1000ms to prevent rapid captures
     PREVIEW_ASPECT_RATIO: 16 / 9
   },
 
